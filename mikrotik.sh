@@ -24,8 +24,11 @@ f_exe_mikrotik_cmd(){
 # copy public key to MikroTik
 f_copy_public_key(){
   user=$1
+
   f_section_echo "Copy the public key ${SSH_PUB_KEY} to the MikroTik router ${MIKROTIK_RT_IP}"
   scp -oStrictHostKeyChecking=no ${HOME}/.ssh/${SSH_PUB_KEY} ${user}@${MIKROTIK_RT_IP}:${SSH_PUB_KEY}
+
+  f_exit_on_error
 }
 
 # add user and import public key to MikroTik
@@ -39,14 +42,19 @@ f_add_user_import_public_key(){
 
   f_section_echo "Import the public key to user ${new_user} on the MikroTik router ${MIKROTIK_RT_IP}"
   f_exe_mikrotik_cmd ${user} "/user ssh-keys import public-key-file=${SSH_PUB_KEY} user=${new_user}"
+
+  f_exit_on_error
 }
 
 # remove user from MikroTik
 f_remove_user(){
   user=$1
   removed_user=$2
+
   f_section_echo "Remove user ${removed_user} from the MikroTik router ${MIKROTIK_RT_IP}"
   f_exe_mikrotik_cmd ${user} "/user remove ${removed_user}"
+
+  f_exit_on_error
 }
 
 # disable admin tools
@@ -122,7 +130,7 @@ f_provisioning(){
   f_harden_security ${AICS_USER}
 }
 
-# reset factory
+# reset factory default configuration
 f_reset_factory(){
   user=$1
   f_section_echo "Reset the  MikroTik router ${MIKROTIK_RT_IP} factory default configuration"
@@ -140,12 +148,72 @@ f_section_echo(){
   echo -e "\n" 1>&2
 }
 
-f_error_exit(){
-  err_code=$?
-  if [ ! ${err_code} ]; then
+f_exit_on_error(){
+  code=$?
+  if [ ${code} -ne 0 ]; then
     echo -e "${PROGNAME}: Error ${err_code}" 1>&2
     exit 1
   fi
 }
 
-f_provisioning
+usage(){
+  echo "Usage: ${PROGNAME}
+                  [ -o | --operation <provisioning|reset> ]
+                  [ --password new_user_password ]"
+  exit 2
+}
+
+# install getopt
+platform=`uname`
+if [ "${platform}" == "Darwin" ] && [ ! -f "/opt/local/bin/port" ]; then
+  echo -e "Please install MacPorts and GNU getopt on macOS" 1>&2
+  echo -e "> sudo port install getopt" 1>&2
+  exit 1
+fi
+
+PARSED_ARGUMENTS=$(getopt -a -n ${PROGNAME} -o: -l operation:,password: -- "$@")
+if [ $? -ne 0 ]; then usage; fi
+
+OPERATION=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -o | --operation)
+      OPERATION="$2"
+      echo -e "set operation ${OPERATION}"
+      shift
+      ;;
+    --password)
+      AICS_USER_PWD="$2"
+      echo -e "set new user password"
+      shift
+      ;;
+    # -- means the end of the arguments; drop this, and break out of the while loop
+    --)
+      break
+      ;;
+    # If invalid options were passed, then getopt should have reported an error,
+    # which we checked as VALID_ARGUMENTS when getopt was called...
+    *)
+      echo -e "Unexpected option: '$1'."
+      usage
+      ;;
+  esac
+  shift
+done
+
+# Perform operation
+if [ "${OPERATION}" == "" ]; then
+  echo -e "Missing operation which is required."
+  usage;
+fi
+
+if [ "${OPERATION}" == "provisioning" ]; then
+  f_section_echo "Provisioning"
+  # f_provisioning
+elif [ "${OPERATION}" == "reset" ]; then
+  f_section_echo "Reset factory default configuration"
+  # f_reset_factory ${AICS_USER}
+else
+  echo -e "Unexpected operation: '${OPERATION}'."
+  usage
+fi
