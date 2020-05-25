@@ -2,23 +2,10 @@
 
 Every router is factory pre-configured with the IP address `192.168.88.1/24` on the ether1 port.
 
-```console
-MIKROTIK_RT_IP=192.168.88.1
-SSH_PUB_KEY=id_rsa.pub
-```
-
-## Use Passwordless SSH/RSA to execute commands
-
-Copy the public key to the MikroTik router
+To see the usage of `mikrotik.sh` script
 
 ```console
-scp ${HOME}/.ssh/${SSH_PUB_KEY} admin@${MIKROTIK_RT_IP}:${SSH_PUB_KEY}
-```
-
-Import the public key from the command line
-
-```console
-ssh admin@${MIKROTIK_RT_IP} "/user ssh-keys import public-key-file=${SSH_PUB_KEY} user=admin"
+./mikrotik.sh --help
 ```
 
 ## Harden security in production
