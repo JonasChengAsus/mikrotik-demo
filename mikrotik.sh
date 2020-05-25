@@ -6,7 +6,6 @@ PROGNAME=$(basename $0)
 # default configurations
 DRYRUN=0 # 1 to skip MikroTik commands
 ADMIN_USER=admin
-AICS_BRIDGE=aics-net
 AICS_IP_POOL=aics-dhcp
 MIKROTIK_RT_IP=192.168.88.1
 SSH_PUB_KEY=id_rsa.pub
@@ -42,7 +41,7 @@ f_reset_admin_pwd(){
   new_pwd=$1
 
   f_section_echo "Reset user ${ADMIN_USER} password on the MikroTik router ${MIKROTIK_RT_IP}"
-  f_exe_mikrotik_cmd "/user set 0 password=${new_pwd}"
+  f_exe_mikrotik_cmd "/user set [find name=${ADMIN_USER}] password=${new_pwd}"
 }
 
 # add user and import public key to MikroTik
@@ -140,16 +139,18 @@ f_preset_network(){
   f_exe_mikrotik_cmd "/ip pool add name=${AICS_IP_POOL} ranges=${AICS_DHCP_RANGE_FROM}-${AICS_DHCP_RANGE_TO}"
 
   # 2. associate bridge to IP pool
-  f_section_echo "Associate bridge ${AICS_BRIDGE} to IP pool ${AICS_IP_POOL} on the MikroTik router ${MIKROTIK_RT_IP}"
+  f_section_echo "Associate default bridge to IP pool ${AICS_IP_POOL} on the MikroTik router ${MIKROTIK_RT_IP}"
   f_exe_mikrotik_cmd "/ip dhcp-server set [find interface=bridge] address-pool=${AICS_IP_POOL} name=aicsconf "
 
   # 3. create DHCP server network
   f_section_echo "Create DHCP server network address ${AICS_GATEWAY_CIDR} and gateway ${AICS_GATEWAY_IP} on the MikroTik router ${MIKROTIK_RT_IP}"
   f_exe_mikrotik_cmd "/ip dhcp-server network add address=${AICS_GATEWAY_CIDR} gateway=${AICS_GATEWAY_IP} comment=aicsconf"
 
-  # 4. create IP address
-  f_section_echo "Createe IP address 192.168.60.1/24 on the MikroTik router ${MIKROTIK_RT_IP}"
-  f_exe_mikrotik_cmd "/ip address set [find interface=bridge] address=192.168.60.1/24 network=192.168.60.0 comment=aicsconf"
+  # 4. change IP address
+  f_section_echo "Change IP address ${AICS_GATEWAY_IP}/24 on the MikroTik router ${MIKROTIK_RT_IP}"
+  echo -e "After changing IP address of the router, the connection will lost after stuck a while..."
+  echo -e "Please be reminded to specify '--routerip ${AICS_GATEWAY_IP}' in the following operations"
+  f_exe_mikrotik_cmd "/ip address set [find interface=bridge] address=${AICS_GATEWAY_IP}/24 network=${prefix_ip}.0 comment=aicsconf"
 }
 
 # IP-MAC binding
@@ -170,7 +171,7 @@ f_provisioning(){
 # reboot router
 f_reboot(){
   f_section_echo "Reboot the MikroTik router ${MIKROTIK_RT_IP}"
-  f_exe_mikrotik_cmd "/system reboot confirmation=no"
+  f_exe_mikrotik_cmd "/system reboot"
 }
 
 # reset factory default configuration
@@ -257,7 +258,8 @@ while [ $# -gt 0 ]; do
       OPERATION=$1
       f_section_echo "Operation '${OPERATION}'"
       ip="$2"
-      mac_address="$3"
+      # convert MAC address to upper case
+      mac_address=`echo "${3}" | tr [a-z] [A-Z]`
       echo -e "set IP ${ip} and MAC address ${mac_address}" 1>&2
       shift; shift;
       ;;
