@@ -1,4 +1,4 @@
-# Configuration 
+# Configuration
 
 Every router is factory pre-configured with the IP address `192.168.88.1/24` on the ether1 port.
 
@@ -12,7 +12,7 @@ SSH_PUB_KEY=id_rsa.pub
 Copy the public key to the MikroTik router
 
 ```console
-scp ${HOME}/.ssh/${SSH_PUB_KEY} admin@${MIKROTIK_RT_IP}:${SSH_PUB_KEY} 
+scp ${HOME}/.ssh/${SSH_PUB_KEY} admin@${MIKROTIK_RT_IP}:${SSH_PUB_KEY}
 ```
 
 Import the public key from the command line
@@ -35,21 +35,21 @@ Change default username admin to different name, custom name helps to protect ac
 Most of RouterOS administrative tools are configured at
 
 ```console
-/ip service print 
+/ip service print
 ```
 
 Keep only secure ones,
 
 ```console
 /ip service disable telnet,ftp,www,api,api-ssl
-/ip service print 
+/ip service print
 ```
 
 and also change the default port, this will immediately stop most of the random SSH bruteforce login attempts:
 
 ```console
 /ip service set ssh port=2200
-/ip service print 
+/ip service print
 ```
 
 RouterOS has built-in options for easy management access to network devices. The particular services should be shutdown on production networks.
@@ -78,8 +78,12 @@ Disable mac-ping service,
 Bandwidth server is used to test throughput between two MikroTik routers. Disable it in production enironment.
 
 ```console
-/tool bandwidth-server set enabled=no 
+/tool bandwidth-server set enabled=no
 ```
+
+# Known Issues
+
+[ssh command exit-code always 0](https://forum.mikrotik.com/viewtopic.php?t=153623)
 
 # Appendix
 
@@ -96,4 +100,3 @@ RouterOS provides SSH client that supports SSHv2 logins to SSH servers reachable
 [MikroTik Tutorial: RouterOS SSH Public Key Auth using RSA keys](https://jcutrer.com/howto/networking/mikrotik/routeros-ssh-publickeyauth-rsa-keys)
 
 A Step-by-Step guide to configure SSH Public Key Authentication on a MikroTik router using an RSA keys
-
