@@ -9,11 +9,7 @@ ADMIN_USER=admin
 AICS_USER=admin
 AICS_USER_PWD=p@ssw0rd
 AICS_BRIDGE=aics-net
-AICS_GATEWAY_IP=192.168.60.1
-AICS_GATEWAY_CIDR=192.168.60.0/24
 AICS_IP_POOL=aics-dhcp
-AICS_DHCP_RANGE_FROM=192.168.60.2
-AICS_DHCP_RANGE_TO=192.168.60.100
 MIKROTIK_RT_IP=192.168.88.1
 SSH_PUB_KEY=id_rsa.pub
 
@@ -142,40 +138,34 @@ f_rename_ether1(){
 f_preset_network(){
   new_router_ip=$1
 
+  # parse IP
+  IFS='.' read -ra IPS <<< "${new_router_ip}"
+  prefix_ip=${IPS[0]}.${IPS[1]}.${IPS[2]}
+
+  # range of ip pool
+  AICS_DHCP_RANGE_FROM=${prefix_ip}.2
+  AICS_DHCP_RANGE_TO=${prefix_ip}.254
+
+  # gateway IP and CIDR
+  AICS_GATEWAY_IP=${new_router_ip}
+  AICS_GATEWAY_CIDR=${prefix_ip}.0/24
+
   f_rename_ether1
 
-  # # 1. create bridge
-  # f_section_echo "Create bridge ${AICS_BRIDGE} on the MikroTik router ${MIKROTIK_RT_IP}"
-  # f_exe_mikrotik_cmd ${ADMIN_USER} "/interface bridge add name=${AICS_BRIDGE} comment=aicsconf"
-
-  # 2. create IP pool
+  # 1. create IP pool
   f_section_echo "Create IP pool ${AICS_IP_POOL} (${AICS_DHCP_RANGE_FROM}-${AICS_DHCP_RANGE_TO}) on the MikroTik router ${MIKROTIK_RT_IP}"
   f_exe_mikrotik_cmd ${ADMIN_USER} "/ip pool add name=${AICS_IP_POOL} ranges=${AICS_DHCP_RANGE_FROM}-${AICS_DHCP_RANGE_TO}"
 
-  # 3. associate bridge to IP pool
+  # 2. associate bridge to IP pool
   f_section_echo "Associate bridge ${AICS_BRIDGE} to IP pool ${AICS_IP_POOL} on the MikroTik router ${MIKROTIK_RT_IP}"
-  # f_exe_mikrotik_cmd ${ADMIN_USER} "/ip dhcp-server add disabled=no name=aicsconf interface=${AICS_BRIDGE} address-pool=${AICS_IP_POOL}"
   f_exe_mikrotik_cmd ${ADMIN_USER} "/ip dhcp-server set [find interface=bridge] address-pool=${AICS_IP_POOL} name=aicsconf "
 
-  # # 4. associate port to bridge
-  # f_section_echo "Remove port ether2 from default bridge on the MikroTik router ${MIKROTIK_RT_IP}"
-  # f_exe_mikrotik_cmd ${ADMIN_USER} "/interface bridge port remove [find interface=ether2]"
-
-  # f_section_echo "Associate port ether2 to bridge ${AICS_BRIDGE} on the MikroTik router ${MIKROTIK_RT_IP}"
-  # f_exe_mikrotik_cmd ${ADMIN_USER} "/interface bridge port add bridge=${AICS_BRIDGE} comment=aicsconf interface=ether2 trusted=yes"
-
-  # # 5. create interface list member
-  # f_section_echo "Create interface list member ${AICS_BRIDGE} on the MikroTik router ${MIKROTIK_RT_IP}"
-  # f_exe_mikrotik_cmd ${ADMIN_USER} "/interface list member add comment=defconf interface=${AICS_BRIDGE} list=LAN"
-
-  # 7. create DHCP server network
+  # 3. create DHCP server network
   f_section_echo "Create DHCP server network address ${AICS_GATEWAY_CIDR} and gateway ${AICS_GATEWAY_IP} on the MikroTik router ${MIKROTIK_RT_IP}"
-  # f_exe_mikrotik_cmd ${ADMIN_USER} "/ip dhcp-server network add address=${AICS_GATEWAY_CIDR} comment=aicsconf gateway=${AICS_GATEWAY_IP}"
   f_exe_mikrotik_cmd ${ADMIN_USER} "/ip dhcp-server network add address=${AICS_GATEWAY_CIDR} gateway=${AICS_GATEWAY_IP} comment=aicsconf"
 
-  # 6. create IP address
+  # 4. create IP address
   f_section_echo "Createe IP address 192.168.60.1/24 on the MikroTik router ${MIKROTIK_RT_IP}"
-  # f_exe_mikrotik_cmd ${ADMIN_USER} "/ip address add address=192.168.60.1/24 comment=aicsconf interface=${AICS_BRIDGE} network=192.168.60.0"
   f_exe_mikrotik_cmd ${ADMIN_USER} "/ip address set [find interface=bridge] address=192.168.60.1/24 network=192.168.60.0 comment=aicsconf"
 }
 
